@@ -14,10 +14,11 @@ const INITIAL_DATA: AppData = { clients: [], debts: [] };
 const COLORS = ['#3b82f6', '#10b981', '#ef4444', '#f59e0b'];
 
 export default function App() {
-  const [postponedInfo, setPostponedInfo] = useState<{ date: number; note: string } | null>(null);
-  const [selectedDebtIds, setSelectedDebtIds] = useState<string[]>([]);
-  const [summaryPreview, setSummaryPreview] = useState<{ text: string; phone: string } | null>(null); // نافذة المعاينة
-  
+  // --- STATE ---
+const [postponedInfo, setPostponedInfo] = useState<{ date: number; note: string } | null>(null);
+const [selectedDebtIds, setSelectedDebtIds] = useState<string[]>([]);
+const [summaryPreview, setSummaryPreview] = useState<{ text: string; phone: string } | null>(null);
+
   const [data, setData] = useState<AppData>(() => {
     const saved = localStorage.getItem('debtCollectorData');
     if (saved) {
@@ -35,14 +36,14 @@ export default function App() {
   const [selectedInstallmentId, setSelectedInstallmentId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isEditClientOpen, setIsEditClientOpen] = useState(false);
-  const [editClientName, setEditClientName] = useState('');
-  const [editClientPhone, setEditClientPhone] = useState('');
+const [editClientName, setEditClientName] = useState('');
+const [editClientPhone, setEditClientPhone] = useState('');
 
   useEffect(() => {
     localStorage.setItem('debtCollectorData', JSON.stringify(data));
   }, [data]);
 
-  // --- ACTIONS --- (مسترجعة بالكامل من كودك الأصلي)
+  // --- ACTIONS ---
   const exportData = () => {
     const dataStr = JSON.stringify(data, null, 2);
     const blob = new Blob([dataStr], { type: "application/json" });
@@ -92,7 +93,6 @@ export default function App() {
     const procInst = installments.map((inst: any) => ({
       ...inst, id: inst.id || generateId(), debtId: isEdit ? id : 'temp', status: inst.status || InstallmentStatus.PENDING
     }));
-
     if (isEdit) {
        setData(prev => ({
          ...prev, debts: prev.debts.map(d => d.id === id ? {
@@ -180,19 +180,6 @@ export default function App() {
           </div>
         </div>
       </header>
-      <div className="px-4 space-y-6">
-        <div className="bg-white p-5 rounded-2xl shadow-sm text-right">
-          <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2 justify-end">تحليل الأداء <TrendingUp size={18} /></h3>
-          <div className="h-48 w-full">
-             <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={[{ name: 'أصل', value: stats.totalLoaned }, { name: 'ربح', value: stats.totalProfit }, { name: 'متبقي', value: stats.totalPending }]} barSize={40}>
-                  <XAxis dataKey="name" tick={{fontSize: 12}} axisLine={false} tickLine={false} />
-                  <Bar dataKey="value" radius={[4, 4, 0, 0]}>{ [stats.totalLoaned, stats.totalProfit, stats.totalPending].map((e, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />) }</Bar>
-                </BarChart>
-             </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
     </div>
   );
 
@@ -212,7 +199,7 @@ export default function App() {
       return clientsWithTotals.filter(c => c.name.includes(searchTerm) || c.phone.includes(searchTerm)).sort((a, b) => {
         const aP = a.remaining <= 0; const bP = b.remaining <= 0;
         if (aP && !bP) return 1; if (!aP && bP) return -1;
-        if (!aP && !bP) return a.nextDate - b.nextDate; // الترتيب المطلوب: الأقرب سداداً أولاً
+        if (!aP && !bP) return a.nextDate - b.nextDate;
         return b.remaining - a.remaining;
       });
     }, [clientsWithTotals, searchTerm]);
@@ -220,12 +207,12 @@ export default function App() {
     return (
       <div className="pb-24 pt-4 px-4 h-full flex flex-col text-right">
         <div className="flex justify-between items-center mb-4"><h2 className="text-2xl font-bold">العملاء</h2><button onClick={() => setCurrentView('ADD_CLIENT')} className="text-blue-600 p-2 bg-blue-50 rounded-full"><UserPlus size={24} /></button></div>
-        <div className="relative mb-6"><input type="text" placeholder="بحث باسم العميل..." className="w-full bg-white pl-4 pr-10 py-3 rounded-xl border-none shadow-sm text-sm text-right focus:ring-2 focus:ring-blue-500" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /><Search className="absolute right-3 top-3 text-gray-400" size={20} /></div>
+        <div className="relative mb-6"><input type="text" placeholder="بحث..." className="w-full bg-white pl-4 pr-10 py-3 rounded-xl border-none shadow-sm text-sm text-right" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /><Search className="absolute right-3 top-3 text-gray-400" size={20} /></div>
         <div className="space-y-3 overflow-y-auto no-scrollbar pb-20">
           {filteredClients.map(client => (
             <div key={client.id} onClick={() => { setSelectedClientId(client.id); setSelectedDebtIds([]); setCurrentView('CLIENT_DETAILS'); }} className={`bg-white p-4 rounded-xl shadow-sm active:scale-[0.99] transition-all cursor-pointer ${client.remaining <= 0 ? 'opacity-50 grayscale border-dashed border-gray-200' : ''}`}>
               <div className="flex justify-between items-start">
-                <div><h3 className="font-bold">{client.name}</h3><p className="text-xs text-gray-500 mt-1">{client.phone}</p>
+                <div><h3 className="font-bold">{client.name}</h3><p className="text-xs text-gray-500">{client.phone}</p>
                 {client.remaining > 0 && client.nextDate !== Infinity && (<p className="text-[10px] text-blue-600 font-medium">موعد السداد: {formatDate(client.nextDate)}</p>)}</div>
                 <div className="text-left"><span className="block text-xs text-gray-400">المتبقي</span><span className={`font-bold ${client.remaining <= 0 ? 'text-gray-400' : 'text-red-500'}`}>{client.remaining <= 0 ? '0' : formatCurrency(client.remaining)}</span></div>
               </div>
@@ -248,22 +235,21 @@ export default function App() {
     const handlePrepareSummary = () => {
       const selected = selectedDebtIds.length > 0 ? clientDebts.filter(d => selectedDebtIds.includes(d.id)) : clientDebts;
       if (selected.length === 0) { alert('يرجى اختيار مديونية'); return; }
-      let text = `مرحباً ${client.name}،\nإليك ملخص حسابك للمديونيات المحددة:\n\n`;
+      let text = `مرحباً ${client.name}،\nإليك ملخص حسابك:\n\n`;
       let tA = 0, pA = 0;
       selected.forEach(d => {
         const p = d.installments.filter(i => i.status === InstallmentStatus.PAID).reduce((s, i) => s + i.amount, 0);
         text += `📌 *${d.itemName}*\n- إجمالي: ${formatCurrency(d.totalValue)}\n- المتبقي: ${formatCurrency(d.totalValue - p)}\n\n`;
         tA += d.totalValue; pA += p;
       });
-      if (selected.length > 1) text += `📊 *الإجمالي العام للمختار:*\n- إجمالي المتبقي: ${formatCurrency(tA - pA)}\n\n`;
-      text += `شكراً لتعاملك معنا.`;
+      if (selected.length > 1) text += `📊 *الإجمالي:* ${formatCurrency(tA - pA)}\n\n`;
+      text += `شكراً لك.`;
       setSummaryPreview({ text, phone: client.phone.replace(/\D/g, '') });
     };
 
     const sendReceipt = (debt: Debt, inst: Installment, receiptNumber: number) => {
       const tD = clientDebts.reduce((acc, d) => acc + (d.totalValue || 0), 0);
       const tP = clientDebts.reduce((acc, d) => acc + d.installments.filter(i => i.status === InstallmentStatus.PAID).reduce((s, i) => s + (i.amount || 0), 0), 0);
-      // نص السند بناءً على طلبك تماماً
       const message = `سند سداد قسط\n\nالعميل: ${client.name} \nتم استلام\nرقم القسط: ${receiptNumber+1}\nالمبلغ: ${formatCurrency(inst.amount)}\nالتاريخ: ${formatDate(inst.paidDate || Date.now())}\n\nإجمالي المديونية: ${formatCurrency(tD)}\nإجمالي المسدد: ${formatCurrency(tP)}\nإجمالي المتبقي: ${formatCurrency(tD - tP)}\n\nشكراً لسدادكم.`;
       window.open(`https://wa.me/${client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
     };
@@ -282,7 +268,7 @@ export default function App() {
           <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-2xl font-bold mb-3 mx-auto">{client.name.charAt(0)}</div>
           <h1 className="text-xl font-bold">{client.name}</h1>
           <p className="text-gray-500 text-sm mb-4">{client.phone} <Phone size={14} className="inline ml-1" /></p>
-          <button onClick={handlePrepareSummary} className="mt-4 flex items-center gap-2 bg-green-50 text-green-700 px-6 py-2 rounded-xl font-bold mx-auto shadow-sm active:scale-95"><Send size={16} /> كشف حساب</button>
+          <button onClick={handlePrepareSummary} className="mt-4 flex items-center gap-2 bg-green-50 text-green-700 px-6 py-2 rounded-xl font-bold mx-auto shadow-sm active:scale-95 transition-transform"><Send size={16} /> كشف حساب</button>
         </div>
         <div className="px-4 mt-6 space-y-6">
            <div className="flex justify-between items-center"><h3 className="font-bold text-gray-800">الديون المسجلة</h3><button onClick={() => { setEditingDebtId(null); setCurrentView('ADD_DEBT'); }} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg">+ مديونية جديدة</button></div>
@@ -327,16 +313,36 @@ export default function App() {
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [notes, setNotes] = useState('');
     const [remM, setRemM] = useState<number>(future.length);
-    const [preview, setPreview] = useState<Installment[]>([]);
+    const [previewInstallments, setPreviewInstallments] = useState<Installment[]>([]);
     const previouslyPaid = debt.installments.filter(i => i.status === InstallmentStatus.PAID && i.id !== installment.id).reduce((sum, i) => sum + i.amount, 0);
     const bal = debt.totalValue - previouslyPaid - amt;
 
+    // دالة التحديث اليدوي للأقساط القادمة (المضافة حديثاً لتشبه لوحة التعديل)
+    const updatePreviewInstallment = (index: number, value: any) => {
+        const newInst = [...previewInstallments];
+        const newAmount = Number(value);
+        if (newAmount < 0) return;
+        newInst[index].amount = newAmount;
+        const remCount = newInst.length - 1 - index;
+        if (remCount > 0) {
+            const sumSoFar = newInst.slice(0, index + 1).reduce((s, i) => s + i.amount, 0);
+            const remBal = bal - sumSoFar;
+            const amtPerM = Math.floor(remBal / remCount);
+            const r = remBal - (amtPerM * remCount);
+            for (let j = index + 1; j < newInst.length; j++) {
+                const isLast = j === newInst.length - 1;
+                newInst[j].amount = Math.max(0, amtPerM + (isLast ? r : 0));
+            }
+        }
+        setPreviewInstallments(newInst);
+    };
+
     useEffect(() => {
-        if (bal <= 0 && remM <= 0) { setPreview([]); return; }
+        if (bal <= 0 && remM <= 0) { setPreviewInstallments([]); return; }
         const safeM = (bal > 1 && remM === 0) ? 1 : remM;
         if (safeM > 0) {
             const plan = calculatePlan(Math.max(0, bal), safeM, new Date(date), debt.paymentDay);
-            setPreview(plan.map(p => ({ ...p, id: generateId(), debtId: debt.id, status: InstallmentStatus.PENDING })));
+            setPreviewInstallments(plan.map(p => ({ ...p, id: generateId(), debtId: debt.id, status: InstallmentStatus.PENDING })));
         }
     }, [amt, remM, date, bal, debt]);
 
@@ -352,9 +358,29 @@ export default function App() {
                     <div className="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-orange-400 space-y-4">
                         <div className="flex justify-between items-center font-bold text-orange-600"><h3>جدولة المتبقي</h3><span>{formatCurrency(bal)}</span></div>
                         <div className="flex items-center justify-between bg-gray-50 p-3 rounded-xl mt-4"><span className="text-sm font-medium">عدد الأشهر</span><div className="flex items-center gap-4"><button onClick={() => setRemM(Math.max(1, remM - 1))} className="w-10 h-10 rounded-full bg-white shadow-sm border flex items-center justify-center text-red-500">-</button><span className="font-bold text-lg">{remM}</span><button onClick={() => setRemM(remM + 1)} className="w-10 h-10 rounded-full bg-white shadow-sm border flex items-center justify-center text-green-600">+</button></div></div>
+                        
+                        {/* جدول الأقساط المتبقية القابل للتعديل (المستعاد بطلبك) */}
+                        <div className="mt-4 border rounded-lg overflow-hidden divide-y bg-gray-50">
+                            {previewInstallments.map((p, idx) => {
+                                const isLast = idx === previewInstallments.length - 1;
+                                return (
+                                    <div key={idx} className="p-3 flex justify-between items-center text-sm bg-white">
+                                        <span className="text-gray-400">قسط {idx+1}</span>
+                                        <input 
+                                            type="number" 
+                                            className={`p-1 rounded border text-xs w-24 font-bold text-right ${isLast ? 'bg-gray-50 text-gray-400' : 'border-orange-200'}`}
+                                            value={p.amount} 
+                                            onChange={(e) => updatePreviewInstallment(idx, e.target.value)}
+                                            disabled={isLast}
+                                        />
+                                        <span className="text-gray-500 text-xs">{formatDate(p.dueDate)}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 )}
-                <button onClick={() => processPayment(debt.id, installment.id, amt, new Date(date).getTime(), notes, preview)} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition-transform">{amt === 0 ? 'تأكيد التأجيل' : 'تأكيد السداد'}</button>
+                <button onClick={() => processPayment(debt.id, installment.id, amt, new Date(date).getTime(), notes, previewInstallments)} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition-transform">{amt === 0 ? 'تأكيد التأجيل' : 'تأكيد السداد'}</button>
             </div>
         </div>
     );
@@ -376,7 +402,7 @@ export default function App() {
     );
   };
 
-  const DebtFormView = () => { // استعادة لوحة تعديل المديونية الأصلية مع جدول الأقساط
+  const DebtFormView = () => {
     const isEditMode = currentView === 'EDIT_DEBT' && !!editingDebtId;
     const existingDebt = isEditMode ? data.debts.find(d => d.id === editingDebtId) : null;
     const client = data.clients.find(c => c.id === selectedClientId);
@@ -399,7 +425,7 @@ export default function App() {
     const handleRecalculate = () => { const { total } = getCalculatedValues(); if (total === 0) return; const plan = calculatePlan(total, months, new Date(startDate), paymentDay); setManualInstallments(plan.map(p => ({ ...p, id: generateId(), debtId: isEditMode ? editingDebtId : 'temp', status: InstallmentStatus.PENDING }))); };
     
     const { total: targetTotal } = getCalculatedValues();
-    const updateInstallment = (index: number, field: 'amount' | 'dueDate', value: any) => { // دالة التحديث اليدوي الأصلية
+    const updateInstallment = (index: number, field: 'amount' | 'dueDate', value: any) => {
         const newInst = [...manualInstallments];
         if (field === 'dueDate') { newInst[index].dueDate = new Date(value).getTime(); setManualInstallments(newInst); }
         else {
@@ -490,7 +516,7 @@ export default function App() {
         <TabBar currentView={currentView} onChangeView={setCurrentView} />
       </div>
 
-      {summaryPreview && ( // نافذة معاينة كشف الحساب
+      {summaryPreview && (
         <div className="fixed inset-0 z-[100] bg-black/60 flex items-end sm:items-center justify-center p-4">
           <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl text-right animate-slide-up">
             <div className="flex justify-between items-center mb-4"><h3 className="font-bold text-lg">مراجعة كشف الحساب</h3><button onClick={() => setSummaryPreview(null)} className="p-1 bg-gray-100 rounded-full"><X size={20}/></button></div>
