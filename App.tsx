@@ -21,19 +21,17 @@ const COLORS = ['#3b82f6', '#10b981', '#ef4444', '#f59e0b'];
 
 export default function App() {
   // --- STATE ---
-const [postponedInfo, setPostponedInfo] = useState<{ date: number; note: string } | null>(null);
-const [selectedDebtIds, setSelectedDebtIds] = useState<string[]>([]);
-const [summaryPreview, setSummaryPreview] = useState<{ text: string; phone: string } | null>(null);
-
+  const [postponedInfo, setPostponedInfo] = useState<{ date: number; note: string } | null>(null);
+  const [selectedDebtIds, setSelectedDebtIds] = useState<string[]>([]);
+  const [summaryPreview, setSummaryPreview] = useState<{ text: string; phone: string } | null>(null); // نافذة المعاينة المضافة
+  
   const [data, setData] = useState<AppData>(() => {
     const saved = localStorage.getItem('debtCollectorData');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (parsed.clients && parsed.debts) return parsed;
-      } catch (e) {
-        console.error("Error parsing saved data", e);
-      }
+      } catch (e) { console.error("Error parsing saved data", e); }
     }
     return INITIAL_DATA;
   });
@@ -44,15 +42,15 @@ const [summaryPreview, setSummaryPreview] = useState<{ text: string; phone: stri
   const [selectedInstallmentId, setSelectedInstallmentId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isEditClientOpen, setIsEditClientOpen] = useState(false);
-const [editClientName, setEditClientName] = useState('');
-const [editClientPhone, setEditClientPhone] = useState('');
+  const [editClientName, setEditClientName] = useState('');
+  const [editClientPhone, setEditClientPhone] = useState('');
 
-  // Persist Data to LocalStorage whenever state changes
+  // Persist Data to LocalStorage
   useEffect(() => {
     localStorage.setItem('debtCollectorData', JSON.stringify(data));
   }, [data]);
 
-  // --- DATA MANAGEMENT ACTIONS ---
+  // --- ACTIONS --- (مسترجعة بالكامل من ملفك الأصلي)
   const exportData = () => {
     const dataStr = JSON.stringify(data, null, 2);
     const blob = new Blob([dataStr], { type: "application/json" });
@@ -72,11 +70,11 @@ const [editClientPhone, setEditClientPhone] = useState('');
       try {
         const json = JSON.parse(e.target?.result as string);
         if (json.clients && json.debts) {
-          if (confirm('سيتم استبدال البيانات الحالية بالنسخة المرفوعة. هل تريد الاستمرار؟')) {
+          if (confirm('سيتم استبدال البيانات الحالية بالنسخة المرفوعة؟')) {
             setData(json);
             alert('تم استعادة البيانات بنجاح ✅');
           }
-        } else { alert('الملف غير صالح ❌'); }
+        }
       } catch (err) { alert('حدث خطأ أثناء قراءة الملف ❌'); }
     };
     reader.readAsText(file);
@@ -169,14 +167,15 @@ const [editClientPhone, setEditClientPhone] = useState('');
   };
 
   const deleteClient = (id: string) => {
-    if(!confirm('حذف العميل وجميع ديونه؟')) return;
+    if(!confirm('هل أنت متأكد من حذف هذا العميل وجميع ديونه نهائياً؟')) return;
     setData(prev => ({ clients: prev.clients.filter(c => c.id !== id), debts: prev.debts.filter(d => d.clientId !== id) }));
     setSelectedClientId(null);
     setCurrentView('CLIENTS_LIST');
+    alert('تم حذف العميل بنجاح ✅');
   };
 
   const deleteDebt = (id: string) => {
-    if(!confirm('حذف هذه المديونية؟')) return;
+    if(!confirm('هل أنت متأكد من حذف هذه المديونية؟')) return;
     setData(prev => ({ ...prev, debts: prev.debts.filter(d => d.id !== id) }));
   };
 
@@ -200,12 +199,12 @@ const [editClientPhone, setEditClientPhone] = useState('');
         <h1 className="text-2xl font-bold text-gray-900 mb-1">مرحباً بك 👋</h1>
         <p className="text-gray-500 text-sm">إليك ملخص الديون لهذا الشهر</p>
         <div className="mt-6 grid grid-cols-2 gap-4">
-          <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 text-center">
-            <div className="flex items-center gap-2 mb-2 text-blue-600 justify-center"><Wallet size={20} /><span className="text-xs font-semibold">إجمالي الديون</span></div>
+          <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
+            <div className="flex items-center gap-2 mb-2 text-blue-600 justify-end"><span className="text-xs font-semibold">إجمالي الديون</span><Wallet size={20} /></div>
             <p className="text-xl font-bold text-gray-800">{formatCurrency(stats.totalLoaned + stats.totalProfit)}</p>
           </div>
-          <div className="bg-green-50 p-4 rounded-2xl border border-green-100 text-center">
-            <div className="flex items-center gap-2 mb-2 text-green-600 justify-center"><CheckCircle2 size={20} /><span className="text-xs font-semibold">تم تحصيله</span></div>
+          <div className="bg-green-50 p-4 rounded-2xl border border-green-100">
+            <div className="flex items-center gap-2 mb-2 text-green-600 justify-end"><span className="text-xs font-semibold">تم تحصيله</span><CheckCircle2 size={20} /></div>
             <p className="text-xl font-bold text-gray-800">{formatCurrency(stats.totalCollected)}</p>
           </div>
         </div>
@@ -256,27 +255,26 @@ const [editClientPhone, setEditClientPhone] = useState('');
     }, [data.clients, data.debts]);
 
     const filteredClients = useMemo(() => {
-      return clientsWithTotals.filter(c => c.name.includes(searchTerm) || c.phone.includes(searchTerm)).sort((a, b) => {
-        const aP = a.remaining <= 0; const bP = b.remaining <= 0;
-        if (aP && !bP) return 1; if (!aP && bP) return -1;
-        if (!aP && !bP) return a.nextDate - b.nextDate; // الترتيب حسب أقرب سداد
-        return b.remaining - a.remaining;
-      });
+      return clientsWithTotals
+        .filter(c => c.name.includes(searchTerm) || c.phone.includes(searchTerm))
+        .sort((a, b) => {
+          const aP = a.remaining <= 0; const bP = b.remaining <= 0;
+          if (aP && !bP) return 1; if (!aP && bP) return -1;
+          if (!aP && !bP) return a.nextDate - b.nextDate; // الترتيب حسب الأقرب سداداً
+          return b.remaining - a.remaining;
+        });
     }, [clientsWithTotals, searchTerm]);
 
     return (
       <div className="pb-24 pt-4 px-4 h-full flex flex-col text-right">
-        <div className="flex justify-between items-center mb-4"><h2 className="text-2xl font-bold">العملاء</h2><button onClick={() => setCurrentView('ADD_CLIENT')} className="text-blue-600 p-2 bg-blue-50 rounded-full"><UserPlus size={24} /></button></div>
-        <div className="relative mb-6"><input type="text" placeholder="بحث..." className="w-full bg-white pl-4 pr-10 py-3 rounded-xl border-none shadow-sm text-sm text-right focus:ring-2 focus:ring-blue-500" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /><Search className="absolute right-3 top-3 text-gray-400" size={20} /></div>
+        <div className="flex justify-between items-center mb-4"><h2 className="text-2xl font-bold text-gray-900">العملاء</h2><button onClick={() => setCurrentView('ADD_CLIENT')} className="text-blue-600 p-2 bg-blue-50 rounded-full active:scale-95 transition-transform"><UserPlus size={24} /></button></div>
+        <div className="relative mb-6"><input type="text" placeholder="بحث باسم العميل..." className="w-full bg-white pl-4 pr-10 py-3 rounded-xl border-none shadow-sm text-sm focus:ring-2 focus:ring-blue-500 text-right" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /><Search className="absolute right-3 top-3 text-gray-400" size={20} /></div>
         <div className="space-y-3 overflow-y-auto no-scrollbar pb-20">
           {filteredClients.map(client => (
             <div key={client.id} onClick={() => { setSelectedClientId(client.id); setSelectedDebtIds([]); setCurrentView('CLIENT_DETAILS'); }} className={`bg-white p-4 rounded-xl shadow-sm active:scale-[0.99] transition-all cursor-pointer ${client.remaining <= 0 ? 'opacity-50 grayscale border-dashed border-gray-200' : ''}`}>
               <div className="flex justify-between items-start">
-                <div className="text-right">
-                  <h3 className={`font-bold ${client.remaining <= 0 ? 'text-gray-400' : 'text-gray-800'}`}>{client.name}</h3>
-                  <p className="text-xs text-gray-500 mt-1">{client.phone}</p>
-                  {client.remaining > 0 && client.nextDate !== Infinity && (<p className="text-[10px] text-blue-600 font-medium mt-1">القادم: {formatDate(client.nextDate)}</p>)}
-                </div>
+                <div className="text-right"><h3 className={`font-bold ${client.remaining <= 0 ? 'text-gray-400' : 'text-gray-800'}`}>{client.name}</h3><p className="text-xs text-gray-500 mt-1">{client.phone}</p>
+                {client.remaining > 0 && client.nextDate !== Infinity && (<p className="text-[10px] text-blue-600 font-medium mt-1">موعد السداد: {formatDate(client.nextDate)}</p>)}</div>
                 <div className="text-left"><span className="block text-xs text-gray-400">المتبقي</span><span className={`font-bold ${client.remaining <= 0 ? 'text-gray-400' : 'text-red-500'}`}>{client.remaining <= 0 ? '0' : formatCurrency(client.remaining)}</span></div>
               </div>
             </div>
@@ -297,17 +295,19 @@ const [editClientPhone, setEditClientPhone] = useState('');
 
     const handlePrepareSummary = () => {
       const selected = selectedDebtIds.length > 0 ? clientDebts.filter(d => selectedDebtIds.includes(d.id)) : clientDebts;
-      if (selected.length === 0) { alert('يرجى اختيار مديونية'); return; }
-      let text = `مرحباً ${client.name}،\nإليك ملخص حسابك للمديونيات المحددة:\n\n`;
-      let tA = 0, pA = 0;
+      if (selected.length === 0) { alert('يرجى اختيار مديونية واحدة على الأقل'); return; }
+      let summaryText = `مرحباً ${client.name}،\nإليك ملخص حسابك للمديونيات المحددة:\n\n`;
+      let totalAll = 0; let paidAll = 0;
       selected.forEach(d => {
-        const p = d.installments.filter(i => i.status === InstallmentStatus.PAID).reduce((s, i) => s + i.amount, 0);
-        text += `📌 *${d.itemName}*\n- إجمالي: ${formatCurrency(d.totalValue)}\n- المتبقي: ${formatCurrency(d.totalValue - p)}\n\n`;
-        tA += d.totalValue; pA += p;
+        const paid = d.installments.filter(i => i.status === InstallmentStatus.PAID).reduce((s, i) => s + i.amount, 0);
+        summaryText += `📌 *${d.itemName}*\n- إجمالي: ${formatCurrency(d.totalValue)}\n- المتبقي: ${formatCurrency(d.totalValue - paid)}\n\n`;
+        totalAll += d.totalValue; paidAll += paid;
       });
-      if (selected.length > 1) text += `📊 *الإجمالي العام للمختار:*\n- إجمالي المتبقي: ${formatCurrency(tA - pA)}\n\n`;
-      text += `شكراً لتعاملك معنا.`;
-      setSummaryPreview({ text, phone: client.phone.replace(/\D/g, '') });
+      if (selected.length > 1) {
+        summaryText += `📊 *الإجمالي العام للمختار:*\n- إجمالي المتبقي: ${formatCurrency(totalAll - paidAll)}\n\n`;
+      }
+      summaryText += `شكراً لتعاملك معنا.`;
+      setSummaryPreview({ text: summaryText, phone: client.phone.replace(/\D/g, '') });
     };
 
     const sendReceipt = (debt: Debt, inst: Installment, receiptNumber: number) => {
@@ -324,23 +324,26 @@ const [editClientPhone, setEditClientPhone] = useState('');
             <button onClick={() => { setSelectedClientId(null); setCurrentView('CLIENTS_LIST'); }} className="p-2 -mr-2 text-gray-600"><ArrowLeft /></button>
             <h2 className="font-bold text-lg">ملف العميل</h2>
             <div className="flex items-center gap-2">
-              <button onClick={() => openEditClient(client)} className="text-blue-600 p-2 bg-blue-50 rounded-full transition-colors"><Edit size={22} /></button>
-              <button onClick={() => deleteClient(client.id)} className="text-red-500 p-2 bg-red-50 rounded-full transition-colors"><Trash2 size={22} /></button>
+              <button onClick={() => openEditClient(client)} className="text-blue-600 p-2 bg-blue-50 rounded-full hover:bg-blue-100 transition-colors"><Edit size={22} /></button>
+              <button onClick={() => deleteClient(client.id)} className="text-red-500 p-2 bg-red-50 rounded-full hover:bg-red-100 transition-colors"><Trash2 size={22} /></button>
             </div>
           </div>
           <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-2xl font-bold mb-3 mx-auto">{client.name.charAt(0)}</div>
           <h1 className="text-xl font-bold text-gray-900">{client.name}</h1>
-          <p className="text-gray-500 text-sm mb-4">{client.phone} <Phone size={14} className="inline ml-1" /></p>
+          <p className="text-gray-500 text-sm flex items-center gap-1 mt-1 justify-center">{client.phone} <Phone size={14} /></p>
           <button onClick={handlePrepareSummary} className="mt-4 flex items-center gap-2 bg-green-50 text-green-700 px-6 py-2 rounded-xl font-bold mx-auto shadow-sm active:scale-95 transition-transform"><Send size={16} /> كشف حساب</button>
         </div>
         <div className="px-4 mt-6 space-y-6">
-           <div className="flex justify-between items-center"><h3 className="font-bold text-gray-800">الديون المسجلة</h3><button onClick={() => { setEditingDebtId(null); setCurrentView('ADD_DEBT'); }} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-colors">+ مديونية جديدة</button></div>
-           {clientDebts.map(debt => (
+           <div className="flex justify-between items-center">
+             <h3 className="font-bold text-gray-800">الديون المسجلة</h3>
+             <button onClick={() => { setEditingDebtId(null); setCurrentView('ADD_DEBT'); }} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-blue-200">+ مديونية جديدة</button>
+           </div>
+	         {clientDebts.map(debt => (
              <div key={debt.id} className={`bg-white rounded-2xl shadow-sm border overflow-hidden transition-all ${selectedDebtIds.includes(debt.id) ? 'border-blue-500 ring-1 ring-blue-500' : 'border-gray-100'}`}>
-               <div className="p-4 border-b bg-gray-50/50 flex justify-between items-start">
+               <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-start">
                  <div className="flex items-center gap-3"><input type="checkbox" checked={selectedDebtIds.includes(debt.id)} onChange={() => toggleDebtSelection(debt.id)} className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" /><div><h4 className="font-bold text-gray-900">{debt.itemName}</h4><p className="text-xs text-gray-500">أصل: {formatCurrency(debt.baseValue)} | ربح: {debt.profitPercentage.toFixed(1)}%</p></div></div>
                  <div className="flex gap-2">
-                   <button onClick={() => { setEditingDebtId(debt.id); setCurrentView('EDIT_DEBT'); }} className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-300"><Edit size={16} /></button>
+                   <button onClick={() => { setEditingDebtId(debt.id); setCurrentView('EDIT_DEBT'); }} className="p-2 bg-gray-100 text-gray-600 rounded-lg"><Edit size={16} /></button>
                    <button onClick={() => deleteDebt(debt.id)} className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-100"><Trash2 size={16} /></button>
                  </div>
                </div>
@@ -386,8 +389,7 @@ const [editClientPhone, setEditClientPhone] = useState('');
 
     const updatePreviewInstallment = (index: number, value: any) => {
         const newInst = [...previewInstallments]; const newAmount = Number(value); if (newAmount < 0) return;
-        newInst[index].amount = newAmount;
-        const remCount = newInst.length - 1 - index;
+        newInst[index].amount = newAmount; const remCount = newInst.length - 1 - index;
         if (remCount > 0) {
             const sumSoFar = newInst.slice(0, index + 1).reduce((s, i) => s + i.amount, 0); const remBal = bal - sumSoFar;
             const amtPerM = Math.floor(remBal / remCount); const r = remBal - (amtPerM * remCount);
@@ -452,7 +454,7 @@ const [editClientPhone, setEditClientPhone] = useState('');
     );
   };
 
-  const DebtFormView = () => {
+  const DebtFormView = () => { // استعادة لوحة إضافة المديونية الأصلية بطلبك
     const isEditMode = currentView === 'EDIT_DEBT' && !!editingDebtId;
     const existingDebt = isEditMode ? data.debts.find(d => d.id === editingDebtId) : null;
     const client = data.clients.find(c => c.id === selectedClientId);
@@ -493,8 +495,9 @@ const [editClientPhone, setEditClientPhone] = useState('');
     return (
       <div className="bg-gray-50 min-h-screen pb-24 text-right animate-fade-in">
         <div className="bg-white px-4 pt-6 pb-4 border-b flex items-center sticky top-0 z-20"><button onClick={() => setCurrentView('CLIENT_DETAILS')} className="p-2 -mr-2 text-gray-600"><ArrowLeft /></button><h2 className="text-xl font-bold mr-2">{isEditMode ? 'تعديل' : 'إضافة'} مديونية</h2></div>
-        <div className="p-4 space-y-5">
+        <div className="p-4 space-y-5 text-right">
            <div className="bg-white p-4 rounded-xl shadow-sm space-y-4">
+             <h3 className="font-bold text-gray-800 flex items-center gap-2 border-b pb-2 mb-2 justify-end"><FileText size={18} className="text-blue-500" /> تفاصيل السلعة</h3>
              <div><label className="block text-xs text-gray-500 mb-1">اسم السلعة</label><input type="text" value={itemName} onChange={e => setItemName(e.target.value)} className="w-full p-3 bg-gray-50 rounded-lg border text-right" /></div>
              <div><label className="block text-xs text-gray-500 mb-1">رأس المال</label><input type="number" value={baseValue} onChange={e => handleBaseValueChange(Number(e.target.value))} className="w-full p-3 bg-gray-50 rounded-lg border font-bold text-right" /></div>
              <div className="bg-gray-50 p-3 rounded-xl border border-gray-200">
@@ -507,10 +510,16 @@ const [editClientPhone, setEditClientPhone] = useState('');
              <div className="flex justify-between items-center bg-blue-50 p-3 rounded-lg border text-blue-800 font-bold"><span>إجمالي المديونية</span><span>{formatCurrency(targetTotal)}</span></div>
            </div>
            <div className="bg-white p-4 rounded-xl shadow-sm space-y-4">
-             <button onClick={handleRecalculate} className="w-full py-2 bg-gray-100 text-gray-700 font-bold rounded-lg border">إعادة إنشاء الجدول</button>
+             {/* إعادة إظهار عناصر عدد الأشهر واليوم المستجابة لطلبك */}
+             <div className="grid grid-cols-2 gap-4">
+               <div><label className="block text-xs text-gray-500 mb-1">عدد الأشهر</label><input type="number" value={months} onChange={e => setMonths(Number(e.target.value))} className="w-full p-3 bg-gray-50 rounded-lg text-sm border text-right" /></div>
+               <div><label className="block text-xs text-gray-500 mb-1">يوم السداد</label><input type="number" min="1" max="31" value={paymentDay} onChange={e => setPaymentDay(Number(e.target.value))} className="w-full p-3 bg-gray-50 rounded-lg text-sm border text-right" /></div>
+             </div>
+             <div><label className="block text-xs text-gray-500 mb-1">تاريخ البداية</label><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full p-3 bg-gray-50 rounded-lg border text-right" /></div>
+             <button onClick={handleRecalculate} className="w-full py-2 bg-gray-100 text-gray-700 font-bold rounded-lg border active:scale-95 transition-transform">إنشاء جدول الأقساط</button>
              <div className="mt-4"><div className="flex justify-between items-center mb-2"><span className="text-sm font-bold text-gray-700">جدول الأقساط</span></div><div className="max-h-80 overflow-y-auto border rounded-lg divide-y bg-gray-50">{manualInstallments.map((inst, idx) => { const isLast = idx === manualInstallments.length - 1; return (<div key={idx} className="p-2 flex gap-2 items-center text-sm"><span className="w-6 text-center text-gray-400">{idx + 1}</span><input type="date" className="p-1 rounded border text-xs text-right w-32" value={new Date(inst.dueDate).toISOString().split('T')[0]} onChange={(e) => updateInstallment(idx, 'dueDate', e.target.value)} /><input type="number" className={`p-1 rounded border text-xs w-24 font-bold text-right ${isLast ? 'bg-gray-100 text-gray-500' : ''}`} value={inst.amount} onChange={(e) => updateInstallment(idx, 'amount', e.target.value)} disabled={isLast} /></div>); })}</div></div>
            </div>
-           <button onClick={() => saveDebt({ id: editingDebtId, clientId: client.id, itemName, baseValue, profitPercentage, monthCount: months, startDate, paymentDay, installments: manualInstallments }, isEditMode)} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 active:scale-95 transition-transform"><Save size={20} />{isEditMode ? 'حفظ التعديلات' : 'اعتماد المديونية'}</button>
+           <button onClick={() => saveDebt({ id: editingDebtId, clientId: client?.id, itemName, baseValue, profitPercentage, monthCount: months, startDate, paymentDay, installments: manualInstallments }, isEditMode)} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition-transform"><Save size={20} className="inline ml-2" />{isEditMode ? 'حفظ التعديلات' : 'اعتماد المديونية'}</button>
         </div>
       </div>
     );
@@ -522,10 +531,7 @@ const [editClientPhone, setEditClientPhone] = useState('');
       <div className="px-4 space-y-6">
         <div className="bg-white p-5 rounded-2xl shadow-sm space-y-4">
           <button onClick={exportData} className="w-full flex items-center justify-between p-4 bg-blue-50 text-blue-700 rounded-xl font-bold shadow-sm"><Download size={20} /><span>تصدير نسخة احتياطية</span></button>
-          <label className="w-full flex items-center justify-between p-4 bg-green-50 text-green-700 rounded-xl font-bold cursor-pointer shadow-sm">
-            <Upload size={20} /><span>استيراد بيانات</span>
-            <input type="file" accept=".json" onChange={importData} className="hidden" />
-          </label>
+          <label className="w-full flex items-center justify-between p-4 bg-green-50 text-green-700 rounded-xl font-bold cursor-pointer shadow-sm"><Upload size={20} /><span>استيراد بيانات</span><input type="file" accept=".json" onChange={importData} className="hidden" /></label>
         </div>
         <button onClick={resetAppData} className="w-full flex items-center justify-center gap-2 bg-red-50 text-red-600 py-4 rounded-xl font-bold shadow-sm active:bg-red-100 transition-colors"><Trash2 size={20} /> تصفير جميع البيانات</button>
       </div>
@@ -535,14 +541,14 @@ const [editClientPhone, setEditClientPhone] = useState('');
   return (
     <>
       {isEditClientOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-4 text-right animate-fade-in">
-            <h3 className="font-bold mb-4 text-gray-900">تعديل بيانات العميل</h3>
-            <div className="space-y-4">
-              <div><label className="block text-xs text-gray-500 mb-1">الاسم</label><input value={editClientName} onChange={e => setEditClientName(e.target.value)} className="w-full p-3 bg-gray-50 border rounded-xl text-right focus:ring-2 focus:ring-blue-500" /></div>
-              <div><label className="block text-xs text-gray-500 mb-1">الجوال</label><input value={editClientPhone} onChange={e => setEditClientPhone(e.target.value)} className="w-full p-3 bg-gray-50 border rounded-xl text-right focus:ring-2 focus:ring-blue-500" /></div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 text-right">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-4 animate-fade-in">
+            <h3 className="font-bold mb-3 text-gray-900">تعديل بيانات العميل</h3>
+            <div className="space-y-3">
+              <div><label className="block text-xs text-gray-500 mb-1">الاسم</label><input value={editClientName} onChange={e => setEditClientName(e.target.value)} className="w-full p-3 bg-gray-50 border rounded-xl text-right" /></div>
+              <div><label className="block text-xs text-gray-500 mb-1">الجوال</label><input value={editClientPhone} onChange={e => setEditClientPhone(e.target.value)} className="w-full p-3 bg-gray-50 border rounded-xl text-right" inputMode="tel" /></div>
             </div>
-            <div className="flex gap-2 mt-6"><button onClick={saveEditClient} className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold active:scale-95 transition-transform">حفظ</button><button onClick={() => setIsEditClientOpen(false)} className="flex-1 bg-gray-100 py-3 rounded-xl font-bold text-gray-600">إلغاء</button></div>
+            <div className="flex gap-2 mt-4"><button onClick={saveEditClient} className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold active:scale-95 transition-transform">حفظ</button><button onClick={() => setIsEditClientOpen(false)} className="flex-1 bg-gray-100 py-3 rounded-xl font-bold text-gray-600">إلغاء</button></div>
           </div>
         </div>
       )}
@@ -558,20 +564,20 @@ const [editClientPhone, setEditClientPhone] = useState('');
         <TabBar currentView={currentView} onChangeView={setCurrentView} />
       </div>
 
-      {summaryPreview && (
+      {summaryPreview && ( // نافذة معاينة كشف الحساب المستجابة لطلبك
         <div className="fixed inset-0 z-[100] bg-black/60 flex items-end sm:items-center justify-center p-4">
           <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl text-right animate-slide-up">
-            <div className="flex justify-between items-center mb-4"><h3 className="font-bold text-lg">مراجعة كشف الحساب</h3><button onClick={() => setSummaryPreview(null)} className="p-1 bg-gray-100 rounded-full"><X size={20}/></button></div>
+            <div className="flex justify-between items-center mb-4"><h3 className="font-bold text-lg text-gray-900">مراجعة كشف الحساب</h3><button onClick={() => setSummaryPreview(null)} className="p-1 bg-gray-100 rounded-full"><X size={20}/></button></div>
             <div className="bg-gray-50 p-4 rounded-2xl text-sm whitespace-pre-wrap max-h-[40vh] overflow-y-auto mb-6 border border-gray-100 leading-relaxed font-tajawal">{summaryPreview.text}</div>
             <div className="flex gap-3">
               <button onClick={() => { window.open(`https://wa.me/${summaryPreview.phone}?text=${encodeURIComponent(summaryPreview.text)}`, '_blank'); setSummaryPreview(null); }} className="flex-1 bg-green-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform"><Send size={20}/> إرسال الآن</button>
-              <button onClick={() => setSummaryPreview(null)} className="flex-1 bg-gray-100 text-gray-700 py-4 rounded-2xl font-bold">إلغاء</button>
+              <button onClick={() => setSummaryPreview(null)} className="flex-1 bg-gray-100 text-gray-700 py-4 rounded-2xl font-bold">إغلاق</button>
             </div>
           </div>
         </div>
       )}
 
-      {postponedInfo !== null && (
+      {postponedInfo !== null && ( // نافذة تفاصيل التأجيل الأصلية
         <div onClick={() => setPostponedInfo(null)} className="fixed inset-0 z-[999999] bg-black/45 flex items-center justify-center text-right">
           <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-[14px] p-[18px] w-[90%] max-w-[420px] shadow-2xl text-center">
             <div style={{color:'#FF7700' , fontWeight: 800, marginBottom: 6 }}>تفاصيل التأجيل</div>
