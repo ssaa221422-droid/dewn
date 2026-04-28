@@ -310,12 +310,24 @@ export default function App() {
       setSummaryPreview({ text: summaryText, phone: client.phone.replace(/\D/g, '') });
     };
 
-    const sendReceipt = (debt: Debt, inst: Installment, receiptNumber: number) => {
-      const tD = clientDebts.reduce((acc, d) => acc + (d.totalValue || 0), 0);
-      const tP = clientDebts.reduce((acc, d) => acc + d.installments.filter(i => i.status === InstallmentStatus.PAID).reduce((s, i) => s + (i.amount || 0), 0), 0);
-      const message = `سند سداد قسط\n\nالعميل: ${client.name} \nتم استلام\nرقم القسط: ${receiptNumber+1}\nالمبلغ: ${formatCurrency(inst.amount)}\nالتاريخ: ${formatDate(inst.paidDate || Date.now())}\n\nإجمالي المديونية: ${formatCurrency(tD)}\nإجمالي المسدد: ${formatCurrency(tP)}\nإجمالي المتبقي: ${formatCurrency(tD - tP)}\n\nشكراً لسدادكم.`;
-      window.open(`https://wa.me/${client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
-    };
+const sendReceipt = (debt: Debt, inst: Installment, receiptNumber: number) => {
+  // حساب المسدد والمتبقي لهذه المديونية فقط
+  const totalPaidForDebt = debt.installments.filter(i => i.status === InstallmentStatus.PAID).reduce((s, i) => s + (i.amount || 0), 0);
+  const remainingForDebt = debt.totalValue - totalPaidForDebt;
+  
+  const message = `سند سداد قسط\n\n` + 
+                  `العميل: ${client.name}\n` +
+                  `المديونية: ${debt.itemName}\n` + // إضافة اسم السلعة
+                  `تم استلام قسط رقم: ${receiptNumber + 1}\n` +
+                  `المبلغ: ${formatCurrency(inst.amount)}\n` +
+                  `التاريخ: ${formatDate(inst.paidDate || Date.now())}\n\n` +
+                  `إجمالي المديونية: ${formatCurrency(debt.totalValue)}\n` + // إجمالي هذه السلعة
+                  `إجمالي المسدد: ${formatCurrency(totalPaidForDebt)}\n` + // مسدد هذه السلعة
+                  `إجمالي المتبقي: ${formatCurrency(remainingForDebt)}\n\n` + // متبقي هذه السلعة
+                  `شكراً لسدادكم.`;
+                  
+  window.open(`https://wa.me/${client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
+};
 
     return (
       <div className="pb-24 bg-gray-50 min-h-screen animate-fade-in text-right">
